@@ -1,0 +1,31 @@
+name: Publish
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install
+      run: yarn
+
+    - name: Build
+      run: yarn build
+
+    - uses: actions/setup-node@v1
+      with:
+        always-auth: true
+        registry-url: https://registry.npmjs.org/
+
+    - name: Publish to npm
+      run: yarn publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
