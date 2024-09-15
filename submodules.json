@@ -1,0 +1,15 @@
+[
+	"io",
+	"modal",
+	"tools",
+	"components",
+	"darkMode",
+	"undo",
+	"models",
+	"view",
+	"triggers",
+	"render",
+	"selection",
+	"utils",
+	"clipboard"
+]

@@ -1,0 +1,10 @@
+/nbproject/
+/dev/
+/assets/tools/icons.ai
+node_modules
+dist/
+js/lib/
+yarn.lock
+/test-results/
+/playwright-report/
+/playwright/.cache/

@@ -1,0 +1,78 @@
+.opacityInput {
+	width: 100%;
+}
+
+
+.blendModeSelect {
+	width: 100%;
+	padding: 0;
+}
+
+.strokeInput {
+	width: 100%;
+}
+
+.strokeButtons {
+	position: absolute;
+	top: 0;
+	right: 0;
+	display:inline-block;
+	height: 22px;
+	margin: 0;
+	padding: 0;
+	vertical-align: bottom;
+	line-height: 0;
+}
+
+
+.inputHelper {
+	border: 0;
+	background-color: transparent;
+	margin: 0 0 1px 0;
+	width: 21px;
+	height: 10px;
+	text-align: center;
+	padding: 0;
+	display:block;
+	line-height: 0;
+	outline:none;
+}
+
+
+.statusBar {
+	position: fixed;
+	bottom: 0;
+	right: 0;
+	background-color: white;
+	border-radius: 3px 0 0 0;
+	margin: 0;
+	padding: 5px;
+	height: 33px;
+}
+
+.statusBarSection {
+	position: relative;
+	display:inline-block;
+	margin-left: 1em;
+}
+
+.statusBarSection.hidden {
+	display: none;
+}
+
+.statusBarSection:empty {
+	margin-left: 0;
+}
+
+.selectionTypeLabel {
+	color: #aaa;
+}
+
+.selectionTypeLabel:not(.none) {
+	color: #009dec;
+}
+
+.zoomInput {
+	width: 60px;
+}
+

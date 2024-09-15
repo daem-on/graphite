@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "noEmit": true,
+    "strict": true,
+    "module": "ES2020",
+    "lib": ["ES2022", "DOM"],
+    "allowImportingTsExtensions": true,
+    "target": "es6",
+    "outDir": "./dist",
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "types": ["paper"],
+  },
+  "include": [
+    "./src/lib/**/*"
+  ],
+}
