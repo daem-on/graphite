@@ -3,6 +3,7 @@ import useSelection from "../../src/lib/selection";
 import paper from "paper";
 import { notifyViewChanged } from "../../src/lib/render";
 import { triggers } from "../../src/lib/triggers";
+import { useBounds, useMoving, useRectangularSelection, useRotatation, useScaling } from "../../src/lib/interactions";
 
 const selection = useSelection(paper, () => {}, JSON.parse);
 
@@ -22,27 +23,17 @@ export const select = defineTool({
 		],
 	},
 	setup(on) {
-		let boundsRect: paper.Rectangle | null;
-		let boundsScalePoints: paper.Point[] = [];
-		let boundsRotPoint: paper.Point | null;
+		const moving = useMoving();
+		const scaling = useScaling(paper);
+		const rotation = useRotatation({ snapAngle: 45 });
+		const rectSelection = useRectangularSelection(paper);
+		const bounds = useBounds({ rotationHandleDistance: 10 });
 
 		let mode: "none" | "scale" | "rotate" | "move" | "cloneMove" | "rectSelection" = 'none';
-		let selectionRect: paper.Rectangle | null;
-
-		let itemGroup: paper.Group | null;
-		let pivot: paper.Point;
-		let corner: paper.Point;
-		let origPivot: paper.Point;
-		let origSize: paper.Point;
-		let origCenter: paper.Point;
-		let scaleItems: paper.Item[];
-		
-		let rotItems: paper.Item[] = [];
-		let rotGroupPivot: paper.Point;
-		const prevRot: number[] = [];
 
 		let tolerance = 0;
 
+		const hideBounds = () => bounds.hide();
 		on("activate", () => {
 			showBounds();
 			tolerance = 8 / paper.view.zoom;
@@ -56,29 +47,19 @@ export const select = defineTool({
 		on("mousedown", event => {
 			if (event.event.button > 0) return;
 			
-			if (boundsRect) {
-				if (boundsRotPoint?.isClose(event.point, tolerance)) {
+			if (bounds.state) {
+				if (bounds.state.rotPoint.isClose(event.point, tolerance)) {
 					mode = "rotate";
-					rotGroupPivot = boundsRect.center;
-					rotItems = selection.getSelectedItems();
-					for (let i = 0; i < rotItems.length; i++) {
-						prevRot[i] = event.point.subtract(rotGroupPivot).angle;
-					}
-					hideBounds();
+					rotation.start(selection.getSelectedItems(), bounds.state.rect.center, event.point);
+					bounds.hide();
 					return;
 				}
-				for (const point of boundsScalePoints) {
+				for (const point of bounds.state.scalePoints) {
 					if (point.isClose(event.point, tolerance)) {
 						mode = "scale";
 	
-						const opposingCorner = boundsRect.center.subtract(point.subtract(boundsRect.center));
-						pivot = opposingCorner.clone();
-						origPivot = opposingCorner.clone();
-						corner = point.clone();
-						origSize = corner.subtract(pivot);
-						origCenter = boundsRect.center.clone();
-						scaleItems = selection.getSelectedItems();
-						hideBounds();
+						scaling.start(selection.getSelectedItems(), bounds.state.rect.center, point);
+						bounds.hide();
 						return;
 					}
 				}
@@ -110,12 +91,12 @@ export const select = defineTool({
 						mode = 'move';
 					}
 				}
-				hideBounds();
+				bounds.hide();
 				return;
 			}
 
 			if (!event.modifiers.shift) {
-				hideBounds();
+				bounds.hide();
 				selection.clearSelection();
 			}
 			mode = 'rectSelection';
@@ -123,77 +104,27 @@ export const select = defineTool({
 
 		
 		on("mousedrag", event => {
-			if (event.event.button > 0) return; // only first mouse button
-			
-			let modOrigSize = origSize;
+			if (event.event.button > 0) return;
 			
 			switch (mode) {
 				case 'rectSelection':
-					if (!selectionRect) {
-						selectionRect = new paper.Rectangle(event.downPoint, event.point);
+					if (!rectSelection.rect) {
+						rectSelection.start(event.downPoint);
 					} else {
-						selectionRect.set(event.downPoint, event.point);
+						rectSelection.update(event.point, event.downPoint);
 					}
 					notifyViewChanged(paper);
 					break;
 				case 'scale':
-					if (!itemGroup) {
-						itemGroup = new paper.Group(scaleItems);
-						itemGroup.data.isHelperItem = true;
-						itemGroup.strokeScaling = false;
-						itemGroup.applyMatrix = false;
-					} else {
-						itemGroup.matrix = new paper.Matrix();
-					}
-	
-					if (event.modifiers.alt) {
-						pivot = origCenter;
-						modOrigSize = origSize.multiply(0.5);
-					} else {
-						pivot = origPivot; 
-					}
-	
-					corner = corner.add(event.delta);
-					const size = corner.subtract(pivot);
-					let sx = 1.0, sy = 1.0;
-					if (Math.abs(modOrigSize.x) > 0.0000001) {
-						sx = size.x / modOrigSize.x;
-					}
-					if (Math.abs(modOrigSize.y) > 0.0000001) {
-						sy = size.y / modOrigSize.y;
-					}
-	
-					if (event.modifiers.shift) {
-						const signx = sx > 0 ? 1 : -1;
-						const signy = sy > 0 ? 1 : -1;
-						sx = sy = Math.max(Math.abs(sx), Math.abs(sy));
-						sx *= signx;
-						sy *= signy;
-					}
-	
-					itemGroup.scale(sx, sy, pivot);
+					scaling.update(event.delta, event.modifiers.shift, event.modifiers.alt);
 					break;
 				case 'rotate':
-					let rotAngle = (event.point.subtract(rotGroupPivot)).angle;
-					
-					rotItems.forEach((item, i) => {					
-						if (event.modifiers.shift) {
-							rotAngle = Math.round(rotAngle / 45) * 45;
-							item.applyMatrix = false;
-							item.pivot = rotGroupPivot;
-							item.rotation = rotAngle - 90;
-						} else {
-							item.rotate(rotAngle - prevRot[i], rotGroupPivot);
-						}
-						prevRot[i] = rotAngle;
-					});
+					rotation.update(event.point, event.modifiers.shift);
 					break;
 				case 'move':
 				case 'cloneMove':
 					const selectedItems = selection.getSelectedItems();
-					for (const item of selectedItems) {
-						item.position = item.position.add(event.delta);
-					}
+					moving.update(selectedItems, event.delta);
 				break;
 			} 
 		});
@@ -203,31 +134,22 @@ export const select = defineTool({
 			
 			switch (mode) {
 				case 'rectSelection':
-					if (selectionRect)
-						selection.processRectangularSelection(event.event.shiftKey, selectionRect);
+					if (rectSelection.rect) {
+						selection.processRectangularSelection(event.event.shiftKey, rectSelection.rect);
+					}
 					break;
 				case 'scale':
-					if (!itemGroup) break;
-
-					itemGroup.strokeScaling = true;
-					itemGroup.applyMatrix = true;
-
-					itemGroup.layer.addChildren(itemGroup.children);
-					itemGroup.remove();
-					itemGroup = null;
-
+					scaling.end();
 					break;
 				case 'rotate':
-					for (const item of rotItems) {
-						item.applyMatrix = true;
-					}
+					rotation.end();
 					break;
 			}
 			
 			mode = 'none';
-			selectionRect = null;
+			rectSelection.end();
 			
-			hideBounds();
+			bounds.hide();
 			if (selection.getSelectedItems().length > 0) {
 				showBounds();
 			}
@@ -235,24 +157,26 @@ export const select = defineTool({
 
 		on("drawImmediate", ({ context }) => {
 			const zoom = 1/paper.view.zoom;
-			if (selectionRect) {
+			if (rectSelection.rect) {
+				const { x, y, width, height } = rectSelection.rect;
 				context.setLineDash([3 * zoom, 3 * zoom]);
 				context.strokeStyle = guideColor;
-				context.strokeRect(selectionRect.x, selectionRect.y, selectionRect.width, selectionRect.height);
+				context.strokeRect(x, y, width, height);
 				context.setLineDash([]);
 			}
-			if (boundsRect) {
+			if (bounds.state) {
+				const { rect: { x, y, width, height }, rotPoint, scalePoints } = bounds.state;
 				context.strokeStyle = guideColor;
 				context.fillStyle = "white";
-				context.strokeRect(boundsRect.x, boundsRect.y, boundsRect.width, boundsRect.height);
-				if (boundsRotPoint) {
+				context.strokeRect(x, y, width, height);
+				if (rotPoint) {
 					context.beginPath();
-					context.arc(boundsRotPoint.x, boundsRotPoint.y, 5 * zoom, 0, 2 * Math.PI);
+					context.arc(rotPoint.x, rotPoint.y, 5 * zoom, 0, 2 * Math.PI);
 					context.stroke();
 					context.fill();
 				}
 				context.fillStyle = guideColor;
-				for (const [index, point] of boundsScalePoints.entries()) {
+				for (const [index, point] of scalePoints.entries()) {
 					const size = (index % 2 ? 4 : 6) * zoom;
 					context.fillRect(point.x - size / 2, point.y - size / 2, size, size);
 				}
@@ -260,35 +184,8 @@ export const select = defineTool({
 		});
 
 		const showBounds = function() {			
-			const items = selection.getSelectedItems();
-			if (items.length <= 0) return;
-
-			const rect = items.reduce((acc, curr) => acc.unite(curr.bounds), items[0].bounds);
-			
-			boundsRect = rect;
-
-			const center = rect.center;
-			boundsScalePoints = [
-				rect.bottomLeft,
-				rect.leftCenter,
-				rect.topLeft,
-				rect.topCenter,
-				rect.topRight,
-				rect.rightCenter,
-				rect.bottomRight,
-				rect.bottomCenter,
-			];
-
-			const bc = rect.bottomCenter;
-			boundsRotPoint = bc.add(bc.subtract(center).normalize(10/paper.view.zoom));
-
+			bounds.show(selection.getSelectedItems(), paper.view.zoom);
 			notifyViewChanged(paper);
-		};
-
-		const hideBounds = function() {
-			boundsRect = null;
-			boundsScalePoints.length = 0;
-			boundsRotPoint = null;
 		};
 	},
 });
