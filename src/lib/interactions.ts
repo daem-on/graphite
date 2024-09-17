@@ -171,3 +171,16 @@ export function useBounds(config: { rotationHandleDistance: number }) {
 		}
 	};
 }
+
+export function useDoubleClick(config: { threshold: number }) {
+	let lastEventTime = 0;
+
+	return function detectDoubleClick(event: { timeStamp: number }) {
+		if ((event.timeStamp - lastEventTime) < config.threshold) {
+			lastEventTime = 0;
+			return true;
+		}
+		lastEventTime = event.timeStamp;
+		return false;
+	};
+}
