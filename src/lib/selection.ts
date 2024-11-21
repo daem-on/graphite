@@ -335,7 +335,7 @@ function useSelection(paper: paper.PaperScope, snapshot: (label: string) => unkn
 		item: paper.Item,
 		invert: boolean
 	) {
-		const itemBounds = item.internalBounds;
+		const itemBounds = item.bounds;
 
 		const isIntersecting = selectionRect.intersects(itemBounds);
 		if (isIntersecting) {
